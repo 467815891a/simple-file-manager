@@ -19,7 +19,11 @@ $allow_show_folders = true; // Set to false to hide all subdirectories
 $disallowed_patterns = ['*.php'];  // must be an array.  Matching files not allowed to be uploaded
 $hidden_patterns = ['*.php','.*']; // Matching files hidden in directory index
 
-$root_dir = '.';   // Change this to explore a directory in a different path (e.g.: /home/user/Desktop)
+if($_GET["dir"]) { // Change this to explore a directory under wwwroot
+	$root_dir = $_GET["dir"];
+} else {
+	$root_dir = '.';
+}
 
 $PASSWORD = '';  // Set the password, to access the file manager... (optional)
 
@@ -39,7 +43,7 @@ if($PASSWORD) {
 }
 
 // must be in UTF-8 or `basename` doesn't work
-setlocale(LC_ALL,'en_US.UTF-8');
+setlocale(LC_ALL,'chs.UTF-8');
 
 $tmp_dir = dirname($_SERVER['SCRIPT_FILENAME']);
 if(DIRECTORY_SEPARATOR==='\\') $tmp_dir = str_replace('/',DIRECTORY_SEPARATOR,$tmp_dir);
@@ -101,7 +105,7 @@ if($_GET['do'] == 'list') {
 			return $f1_key > $f2_key;
 		});
 	} else {
-		err(412,"Not a Directory");
+		err(412,"不是一个目录");
 	}
 	echo json_encode(['success' => true, 'is_writable' => is_writable($file), 'results' =>$result]);
 	exit;
@@ -122,14 +126,14 @@ if($_GET['do'] == 'list') {
 } elseif ($_POST['do'] == 'upload' && $allow_upload) {
 	foreach($disallowed_patterns as $pattern)
 		if(fnmatch($pattern, $_FILES['file_data']['name']))
-			err(403,"Files of this type are not allowed.");
+			err(403,"此类型文件禁止上传！");
 
 	$res = move_uploaded_file($_FILES['file_data']['tmp_name'], $file.'/'.$_FILES['file_data']['name']);
 	exit;
 } elseif ($_GET['do'] == 'download') {
 	foreach($disallowed_patterns as $pattern)
 		if(fnmatch($pattern, $file))
-			err(403,"Files of this type are not allowed.");
+			err(403,"此类型文件禁止下载！");
 
 	$filename = basename($file);
 	$finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -407,9 +411,9 @@ $(function(){
 	};
 	function renderFileSizeErrorRow(file,folder) {
 		return $row = $('<div class="error" />')
-			.append( $('<span class="fileuploadname" />').text( 'Error: ' + (folder ? folder+'/':'')+file.name))
-			.append( $('<span/>').html(' file size - <b>' + formatFileSize(file.size) + '</b>'
-				+' exceeds max upload size of <b>' + formatFileSize(MAX_UPLOAD_SIZE) + '</b>')  );
+			.append( $('<span class="fileuploadname" />').text( '错误： ' + (folder ? folder+'/':'')+file.name))
+			.append( $('<span/>').html(' 文件大小 - <b>' + formatFileSize(file.size) + '</b>'
+				+' 超出最大上传文件大小： <b>' + formatFileSize(MAX_UPLOAD_SIZE) + '</b>')  );
 	}
 <?php endif; ?>
 	function list() {
@@ -439,8 +443,8 @@ $(function(){
 		var allow_direct_link = <?php echo $allow_direct_link?'true':'false'; ?>;
         	if (!data.is_dir && !allow_direct_link)  $link.css('pointer-events','none');
 		var $dl_link = $('<a/>').attr('href','?do=download&file='+ encodeURIComponent(data.path))
-			.addClass('download').text('download');
-		var $delete_link = $('<a href="#" />').attr('data-file',data.path).addClass('delete').text('delete');
+			.addClass('download').text('下载');
+		var $delete_link = $('<a href="#" />').attr('data-file',data.path).addClass('delete').text('删除');
 		var perms = [];
 		if(data.is_readable) perms.push('read');
 		if(data.is_writable) perms.push('write');
@@ -457,7 +461,7 @@ $(function(){
 	}
 	function renderBreadcrumbs(path) {
 		var base = "",
-			$html = $('<div/>').append( $('<a href=#>Home</a></div>') );
+			$html = $('<div/>').append( $('<a href=#>主页</a></div>') );
 		$.each(path.split('%2F'),function(k,v){
 			if(v) {
 				var v_as_text = decodeURIComponent(v);
@@ -469,11 +473,9 @@ $(function(){
 		return $html;
 	}
 	function formatTimestamp(unix_timestamp) {
-		var m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+		var m = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 		var d = new Date(unix_timestamp*1000);
-		return [m[d.getMonth()],' ',d.getDate(),', ',d.getFullYear()," ",
-			(d.getHours() % 12 || 12),":",(d.getMinutes() < 10 ? '0' : '')+d.getMinutes(),
-			" ",d.getHours() >= 12 ? 'PM' : 'AM'].join('');
+		return [d.getFullYear(),'年',m[d.getMonth()],d.getDate()," ",(d.getHours() >= 12 ? '上午' : '下午')," ",d.getHours() % 12 || 12,":",(d.getMinutes() < 10 ? '0' : '')+d.getMinutes()].join('');
 	}
 	function formatFileSize(bytes) {
 		var s = ['bytes', 'KB','MB','GB','TB','PB','EB'];
@@ -488,8 +490,8 @@ $(function(){
 <div id="top">
    <?php if($allow_create_folder): ?>
 	<form action="?" method="post" id="mkdir" />
-		<label for=dirname>Create New Folder</label><input id=dirname type=text name=name value="" />
-		<input type="submit" value="create" />
+		<label for=dirname>新建文件夹</label><input id=dirname type=text name=name value="" />
+		<input type="submit" value="创建" />
 	</form>
 
    <?php endif; ?>
@@ -497,8 +499,8 @@ $(function(){
    <?php if($allow_upload): ?>
 
 	<div id="file_drop_target">
-		Drag Files Here To Upload
-		<b>or</b>
+		拖拽文件到此并释放即可上传
+		<b>或者</b>
 		<input type="file" multiple />
 	</div>
    <?php endif; ?>
@@ -507,11 +509,11 @@ $(function(){
 
 <div id="upload_progress"></div>
 <table id="table"><thead><tr>
-	<th>Name</th>
-	<th>Size</th>
-	<th>Modified</th>
-	<th>Permissions</th>
-	<th>Actions</th>
+	<th>文件名</th>
+	<th>文件大小</th>
+	<th>最近修改时间</th>
+	<th>权限</th>
+	<th>操作</th>
 </tr></thead><tbody id="list">
 
 </tbody></table>
